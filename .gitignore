@@ -1,0 +1,15 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Environment
+.env
+
+# Piper models (too large for git)
+digital_human_server/models/piper/*.onnx
+digital_human_server/models/piper/*.onnx.json
+
+# OS
+.DS_Store
+
