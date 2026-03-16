@@ -1,0 +1,23 @@
+*.iml
+.gradle/
+local.properties
+.idea/
+build/
+app/build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Native dependencies (fetched by setup_native.sh)
+app/src/main/cpp/whisper.cpp/
+app/src/main/cpp/llama.cpp/
+app/src/main/cpp/piper-phonemize/
+
+# Model files (too large for git)
+app/src/main/assets/*.bin
+app/src/main/assets/*.gguf
+app/src/main/assets/*.onnx
+app/src/main/assets/*.onnx.json
+
+# Video files are tracked (small enough)
+!app/src/main/assets/*.mp4

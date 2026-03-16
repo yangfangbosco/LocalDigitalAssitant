@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Digital Human</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ===== Video Layer ===== */
+    #video-container {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+    }
+
+    #video-container video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    #video-listen,
+    #video-talking {
+      position: absolute;
+      inset: 0;
+    }
+
+    #video-talking {
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    #video-talking.active {
+      opacity: 1;
+    }
+
+    /* ===== User Text (pill, left of mic button) ===== */
+    #user-text {
+      position: fixed;
+      right: 88px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 20;
+      max-width: 60vw;
+      padding: 8px 20px;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 20px;
+      color: #fff;
+      font-size: 14px;
+      line-height: 1.4;
+      display: none;
+      backdrop-filter: blur(4px);
+    }
+
+    #user-text.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    /* ===== AI Response (below mic button area, left-aligned) ===== */
+    #ai-response {
+      position: fixed;
+      left: 16px;
+      top: calc(50% + 40px);
+      z-index: 20;
+      max-width: 55vw;
+      max-height: 30vh;
+      padding: 12px 16px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 12px;
+      color: #fff;
+      font-size: 15px;
+      line-height: 1.6;
+      display: none;
+      overflow-y: auto;
+      scrollbar-width: none;
+      backdrop-filter: blur(4px);
+    }
+
+    #ai-response::-webkit-scrollbar {
+      display: none;
+    }
+
+    #ai-response.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    #ai-response.streaming::after {
+      content: '▊';
+      animation: blink 0.8s infinite;
+      margin-left: 2px;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    /* ===== Mic Button (right-center of screen) ===== */
+    #mic-btn {
+      position: fixed;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 20;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      -webkit-tap-highlight-color: transparent;
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    #mic-btn:active {
+      transform: translateY(-50%) scale(0.92);
+    }
+
+    #mic-btn.recording {
+      background: #ff4444;
+    }
+
+    #mic-btn svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    #mic-btn .icon-mic { display: block; }
+    #mic-btn .icon-send { display: none; }
+    #mic-btn.recording .icon-mic { display: none; }
+    #mic-btn.recording .icon-send { display: block; }
+
+    #mic-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Recording Indicator (next to mic button) */
+    #recording-indicator {
+      position: fixed;
+      right: 88px;
+      top: calc(50% + 40px);
+      transform: translateY(-50%);
+      z-index: 20;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 20px;
+      color: #fff;
+      font-size: 14px;
+    }
+
+    #recording-indicator.active {
+      display: flex;
+    }
+
+    #recording-indicator .dot {
+      width: 8px;
+      height: 8px;
+      background: #ff4444;
+      border-radius: 50%;
+      animation: pulse 1.2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.3); }
+    }
+
+    /* Loading Indicator (next to mic button) */
+    #loading-indicator {
+      position: fixed;
+      right: 88px;
+      top: calc(50% + 40px);
+      transform: translateY(-50%);
+      z-index: 20;
+      display: none;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 20px;
+      color: #fff;
+      font-size: 14px;
+    }
+
+    #loading-indicator.active {
+      display: flex;
+    }
+
+    .loading-dots span {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      background: #fff;
+      border-radius: 50%;
+      animation: loadingDot 1.4s infinite;
+    }
+
+    .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes loadingDot {
+      0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+      40% { opacity: 1; transform: scale(1); }
+    }
+
+    /* ===== Debug Panel ===== */
+    #debug-toggle {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 30;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      border: none;
+      background: rgba(0, 0, 0, 0.3);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      opacity: 0.5;
+    }
+
+    #debug-panel {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 25;
+      display: none;
+      padding: 12px 16px 40px 16px;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(8px);
+      gap: 10px;
+      align-items: center;
+    }
+
+    #debug-panel.active {
+      display: flex;
+    }
+
+    #text-input {
+      flex: 1;
+      height: 44px;
+      padding: 0 16px;
+      border: none;
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.9);
+      font-size: 15px;
+      outline: none;
+      color: #1a1a1a;
+    }
+
+    #text-input::placeholder {
+      color: #999;
+    }
+
+    #debug-send-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: none;
+      background: #4a90e2;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    #debug-send-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Video Layer -->
+  <div id="video-container">
+    <video id="video-listen" src="listen.mp4" muted loop playsinline preload="auto"></video>
+    <video id="video-talking" src="taking.mp4" muted loop playsinline preload="auto"></video>
+  </div>
+
+  <!-- User ASR Text (pill, left of mic) -->
+  <div id="user-text"></div>
+
+  <!-- AI Response (bottom-left) -->
+  <div id="ai-response"></div>
+
+  <!-- Mic Button (right-center) -->
+  <div id="recording-indicator">
+    <span class="dot"></span>
+    <span>Listening...</span>
+  </div>
+  <div id="loading-indicator">
+    <span>Thinking</span>
+    <span class="loading-dots"><span></span><span></span><span></span></span>
+  </div>
+  <button id="mic-btn" aria-label="Microphone">
+    <svg class="icon-mic" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="9" y="1" width="6" height="12" rx="3"/>
+      <path d="M19 10v1a7 7 0 0 1-14 0v-1"/>
+      <line x1="12" y1="19" x2="12" y2="23"/>
+      <line x1="8" y1="23" x2="16" y2="23"/>
+    </svg>
+    <svg class="icon-send" viewBox="0 0 24 24" fill="#fff" stroke="none">
+      <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+    </svg>
+  </button>
+
+  <!-- Debug Panel -->
+  <button id="debug-toggle">DBG</button>
+  <div id="debug-panel">
+    <input id="text-input" type="text" placeholder="Type a message..." />
+    <button id="debug-send-btn">
+      <svg viewBox="0 0 24 24" fill="#fff" stroke="none">
+        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+      </svg>
+    </button>
+  </div>
+
+  <script>
+    // ===== Config =====
+    function isAndroid() { return typeof NativeBridge !== 'undefined'; }
+
+    // ===== State Management =====
+    const State = { IDLE: 'idle', RECORDING: 'recording', PROCESSING: 'processing', SPEAKING: 'speaking' };
+    let currentState = State.IDLE;
+    let accumulatedText = '';
+
+    // ===== DOM Elements =====
+    const videoListen = document.getElementById('video-listen');
+    const videoTalking = document.getElementById('video-talking');
+    const userTextEl = document.getElementById('user-text');
+    const aiResponseEl = document.getElementById('ai-response');
+    const micBtn = document.getElementById('mic-btn');
+    const recordingIndicator = document.getElementById('recording-indicator');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const textInput = document.getElementById('text-input');
+    const debugToggle = document.getElementById('debug-toggle');
+    const debugPanel = document.getElementById('debug-panel');
+    const debugSendBtn = document.getElementById('debug-send-btn');
+
+    // ===== Init =====
+    function init() {
+      videoListen.play().catch(() => {
+        document.addEventListener('click', () => videoListen.play(), { once: true });
+      });
+
+      micBtn.addEventListener('click', handleMicClick);
+
+      debugToggle.addEventListener('click', () => debugPanel.classList.toggle('active'));
+
+      async function debugSend() {
+        if (currentState !== State.IDLE) return;
+        const text = textInput.value.trim();
+        if (!text) return;
+        textInput.value = '';
+        setState(State.PROCESSING);
+        showUserText(text);
+        if (isAndroid()) {
+          showAiResponse('', true);
+          NativeBridge.sendText(text);
+          return;
+        }
+        await requestLLMResponse(text);
+      }
+
+      textInput.addEventListener('keydown', async (e) => {
+        if (e.key === 'Enter') await debugSend();
+      });
+      debugSendBtn.addEventListener('click', debugSend);
+    }
+
+    // ===== State Transitions =====
+    function setState(newState) {
+      currentState = newState;
+      if (newState === State.RECORDING || newState === State.PROCESSING) hideAllText();
+
+      micBtn.classList.toggle('recording', newState === State.RECORDING);
+      recordingIndicator.classList.toggle('active', newState === State.RECORDING);
+      loadingIndicator.classList.toggle('active', newState === State.PROCESSING);
+      const busy = (newState === State.PROCESSING || newState === State.SPEAKING);
+      micBtn.disabled = busy;
+      textInput.disabled = busy;
+
+      if (newState === State.SPEAKING) {
+        videoTalking.currentTime = 0;
+        videoTalking.play();
+        videoTalking.classList.add('active');
+      } else {
+        videoTalking.classList.remove('active');
+        videoTalking.pause();
+      }
+    }
+
+    // ===== Mic Button =====
+    async function handleMicClick() {
+      if (currentState === State.IDLE) {
+        if (isAndroid()) {
+          // Native recording + VAD + ASR + LLM + TTS all handled natively
+          NativeBridge.startRecording();
+          setState(State.RECORDING);
+        } else {
+          await startRecordingWeb();
+        }
+      } else if (currentState === State.RECORDING) {
+        if (isAndroid()) {
+          setState(State.PROCESSING);
+          NativeBridge.stopRecordingAndProcess();
+        } else {
+          await stopRecordingAndSendWeb();
+        }
+      }
+    }
+
+    // ===== Native Bridge Callbacks (called from Java) =====
+    window.onASRResult = function(text) {
+      if (text && text.trim()) {
+        setState(State.PROCESSING);
+        showUserText(text);
+        showAiResponse('', true);
+        accumulatedText = '';
+      } else {
+        setState(State.IDLE);
+      }
+    };
+
+    window.onLLMToken = function(token) {
+      accumulatedText += token;
+      aiResponseEl.textContent = accumulatedText;
+      aiResponseEl.scrollTop = aiResponseEl.scrollHeight;
+    };
+
+    window.onLLMDone = function() {
+      aiResponseEl.classList.remove('streaming');
+    };
+
+    window.onTTSStart = function() {
+      setState(State.SPEAKING);
+    };
+
+    window.onTTSDone = function() {
+      setState(State.IDLE);
+    };
+
+    // ===== Web Mode (HTTP API fallback) =====
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let audioQueue = [];
+    let isPlayingAudio = false;
+    let currentAudio = null;
+    let sentenceBuffer = '';
+    let audioContext = null;
+    let vadAnalyser = null;
+    let vadTimer = null;
+    const VAD_SILENCE_MS = 1500;
+    const VAD_THRESHOLD = 0.01;
+    const API_BASE = '/api';
+
+    async function startRecordingWeb() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
+        mediaRecorder.start();
+        setState(State.RECORDING);
+        startVAD(stream);
+      } catch (err) {
+        console.error('Failed to access microphone:', err);
+      }
+    }
+
+    function startVAD(stream) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioContext.createMediaStreamSource(stream);
+      vadAnalyser = audioContext.createAnalyser();
+      vadAnalyser.fftSize = 512;
+      source.connect(vadAnalyser);
+      const dataArray = new Float32Array(vadAnalyser.fftSize);
+      let silenceStart = null, hasSpoken = false;
+
+      function checkVAD() {
+        if (currentState !== State.RECORDING) return;
+        vadAnalyser.getFloatTimeDomainData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i] * dataArray[i];
+        const rms = Math.sqrt(sum / dataArray.length);
+        if (rms > VAD_THRESHOLD) { hasSpoken = true; silenceStart = null; }
+        else if (hasSpoken) {
+          if (!silenceStart) silenceStart = Date.now();
+          else if (Date.now() - silenceStart > VAD_SILENCE_MS) { stopRecordingAndSendWeb(); return; }
+        }
+        vadTimer = requestAnimationFrame(checkVAD);
+      }
+      vadTimer = requestAnimationFrame(checkVAD);
+    }
+
+    function stopVAD() {
+      if (vadTimer) { cancelAnimationFrame(vadTimer); vadTimer = null; }
+      if (audioContext) { audioContext.close(); audioContext = null; }
+    }
+
+    async function stopRecordingAndSendWeb() {
+      if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
+      stopVAD();
+      return new Promise((resolve) => {
+        mediaRecorder.onstop = async () => {
+          mediaRecorder.stream.getTracks().forEach(t => t.stop());
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          setState(State.PROCESSING);
+          const asrText = await sendToASR(audioBlob);
+          if (asrText && asrText.trim()) {
+            showUserText(asrText);
+            await requestLLMResponse(asrText);
+          } else { setState(State.IDLE); }
+          resolve();
+        };
+        mediaRecorder.stop();
+      });
+    }
+
+    async function sendToASR(audioBlob) {
+      try {
+        const formData = new FormData();
+        formData.append('audio', audioBlob);
+        const resp = await fetch(`${API_BASE}/asr`, { method: 'POST', body: formData });
+        if (!resp.ok) throw new Error(resp.status);
+        const data = await resp.json();
+        return data.text || '';
+      } catch (err) { console.error('ASR failed:', err); return ''; }
+    }
+
+    async function requestLLMResponse(userText) {
+      accumulatedText = '';
+      sentenceBuffer = '';
+      resetTtsQueue();
+      try {
+        const resp = await fetch(`${API_BASE}/chat`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: userText }),
+        });
+        if (!resp.ok) throw new Error(resp.status);
+        showAiResponse('', true);
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          processStreamChunk(decoder.decode(value, { stream: true }));
+        }
+        if (sentenceBuffer.trim()) { sendToTTS(sentenceBuffer.trim()); sentenceBuffer = ''; }
+        aiResponseEl.classList.remove('streaming');
+        await waitForAudioComplete();
+        setState(State.IDLE);
+      } catch (err) {
+        console.error('LLM failed:', err);
+        showAiResponse('Connection error. Please try again.', false);
+        setState(State.IDLE);
+      }
+    }
+
+    function processStreamChunk(chunk) {
+      for (const line of chunk.split('\n')) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') continue;
+          try {
+            const parsed = JSON.parse(data);
+            appendStreamText(parsed.content || parsed.text || data);
+          } catch { appendStreamText(data); }
+        }
+      }
+    }
+
+    function appendStreamText(text) {
+      accumulatedText += text;
+      sentenceBuffer += text;
+      aiResponseEl.textContent = accumulatedText;
+      aiResponseEl.scrollTop = aiResponseEl.scrollHeight;
+      const match = sentenceBuffer.match(/([.!?;。！？；\n])/);
+      if (match) {
+        const idx = match.index + match[0].length;
+        const sentence = sentenceBuffer.slice(0, idx).trim();
+        sentenceBuffer = sentenceBuffer.slice(idx);
+        if (sentence) sendToTTS(sentence);
+      }
+    }
+
+    // TTS ordered queue
+    let ttsSequence = 0, ttsResults = new Map(), ttsNextToPlay = 0;
+    function resetTtsQueue() { ttsSequence = 0; ttsNextToPlay = 0; ttsResults.clear(); audioQueue = []; }
+
+    async function sendToTTS(text) {
+      const seq = ttsSequence++;
+      try {
+        const resp = await fetch(`${API_BASE}/tts`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        });
+        if (!resp.ok) throw new Error(resp.status);
+        const blob = await resp.blob();
+        ttsResults.set(seq, URL.createObjectURL(blob));
+        flushTtsQueue();
+      } catch (err) { ttsResults.set(seq, null); flushTtsQueue(); }
+    }
+
+    function flushTtsQueue() {
+      while (ttsResults.has(ttsNextToPlay)) {
+        const url = ttsResults.get(ttsNextToPlay);
+        ttsResults.delete(ttsNextToPlay++);
+        if (url) audioQueue.push(url);
+      }
+      if (!isPlayingAudio && audioQueue.length > 0) playNextAudio();
+    }
+
+    function playNextAudio() {
+      if (audioQueue.length === 0) { isPlayingAudio = false; return; }
+      isPlayingAudio = true;
+      setState(State.SPEAKING);
+      const url = audioQueue.shift();
+      currentAudio = new Audio(url);
+      currentAudio.onended = () => { URL.revokeObjectURL(url); audioQueue.length > 0 ? playNextAudio() : (isPlayingAudio = false, !aiResponseEl.classList.contains('streaming') && setState(State.IDLE)); };
+      currentAudio.onerror = () => { URL.revokeObjectURL(url); playNextAudio(); };
+      currentAudio.play().catch(() => playNextAudio());
+    }
+
+    function waitForAudioComplete() {
+      return new Promise((resolve) => {
+        const check = () => (!isPlayingAudio && audioQueue.length === 0) ? resolve() : setTimeout(check, 100);
+        check();
+      });
+    }
+
+    // ===== UI Helpers =====
+    function showUserText(text) { userTextEl.textContent = text; userTextEl.classList.add('active'); }
+    function showAiResponse(text, streaming = false) {
+      aiResponseEl.textContent = text;
+      aiResponseEl.classList.add('active');
+      streaming ? aiResponseEl.classList.add('streaming') : aiResponseEl.classList.remove('streaming');
+    }
+    function hideAllText() { userTextEl.classList.remove('active'); aiResponseEl.classList.remove('active', 'streaming'); }
+
+    // ===== Start =====
+    init();
+  </script>
+</body>
+</html>
