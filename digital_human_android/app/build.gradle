@@ -48,4 +48,5 @@ android {
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation files('libs/sherpa-onnx.aar')
+    implementation 'org.nanohttpd:nanohttpd:2.3.1'
 }

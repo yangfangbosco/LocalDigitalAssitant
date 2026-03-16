@@ -19,6 +19,7 @@ import com.k2fsa.sherpa.onnx.OfflineTtsConfig;
 import com.k2fsa.sherpa.onnx.OfflineTtsKokoroModelConfig;
 import com.k2fsa.sherpa.onnx.OfflineTtsModelConfig;
 
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -29,6 +30,7 @@ public class JSBridge {
     private static final int SAMPLE_RATE = 16000;
 
     private final WebView webView;
+    private final Context context;
     private final Handler mainHandler;
     private final ExecutorService executor;
 
@@ -36,12 +38,12 @@ public class JSBridge {
     private final AtomicBoolean isRecording = new AtomicBoolean(false);
     private float[] recordedAudio;
 
-    // Sherpa-ONNX TTS (Kokoro)
     private OfflineTts offlineTts;
     private boolean ttsReady = false;
 
     public JSBridge(WebView webView, Context context) {
         this.webView = webView;
+        this.context = context;
         this.mainHandler = new Handler(Looper.getMainLooper());
         this.executor = Executors.newSingleThreadExecutor();
     }
@@ -68,8 +70,7 @@ public class JSBridge {
 
             offlineTts = new OfflineTts(assetManager, ttsConfig);
             ttsReady = true;
-            Log.i(TAG, "TTS: Kokoro initialized, sampleRate=" + offlineTts.sampleRate()
-                    + ", numSpeakers=" + offlineTts.numSpeakers());
+            Log.i(TAG, "TTS: Kokoro initialized, sampleRate=" + offlineTts.sampleRate());
         } catch (Exception e) {
             Log.e(TAG, "TTS: Kokoro init failed", e);
         }
@@ -139,10 +140,20 @@ public class JSBridge {
         });
     }
 
-    // ===== LLM + TTS Pipeline =====
+    // ===== LLM + RAG + TTS Pipeline =====
 
     private void runLLMAndTTS(String userText) {
-        long session = InferenceEngine.llmStartChat(userText);
+        // RAG: search FAQ database for relevant answers
+        String ragContext = buildRagContext(userText);
+        String queryWithContext = userText;
+        if (!ragContext.isEmpty()) {
+            queryWithContext = "Use the following knowledge to answer. " +
+                    "If the answer is in the knowledge base, use it directly.\n\n" +
+                    "Knowledge:\n" + ragContext + "\n\nUser question: " + userText;
+            Log.d(TAG, "RAG context found, augmented query");
+        }
+
+        long session = InferenceEngine.llmStartChat(queryWithContext);
         StringBuilder sentence = new StringBuilder();
         String token;
 
@@ -168,6 +179,19 @@ public class JSBridge {
         callJS("onTTSDone", "");
     }
 
+    private String buildRagContext(String query) {
+        FaqDatabase db = FaqDatabase.getInstance(context);
+        List<FaqDatabase.FaqItem> results = db.search(query, 3);
+        if (results.isEmpty()) return "";
+
+        StringBuilder sb = new StringBuilder();
+        for (FaqDatabase.FaqItem faq : results) {
+            sb.append("Q: ").append(faq.question).append("\n");
+            sb.append("A: ").append(faq.answer).append("\n\n");
+        }
+        return sb.toString().trim();
+    }
+
     // ===== TTS =====
 
     private void synthesizeAndPlay(String text) {
@@ -183,12 +207,8 @@ public class JSBridge {
         float[] samples = audio.getSamples();
         int sampleRate = audio.getSampleRate();
 
-        if (samples == null || samples.length == 0) {
-            Log.w(TAG, "TTS generated empty audio");
-            return;
-        }
+        if (samples == null || samples.length == 0) return;
 
-        // Convert float samples to 16-bit PCM
         byte[] pcm = new byte[samples.length * 2];
         for (int i = 0; i < samples.length; i++) {
             short val = (short) Math.max(-32768, Math.min(32767, samples[i] * 32767));
@@ -208,7 +228,6 @@ public class JSBridge {
         try { Thread.sleep((long) durationMs + 50); } catch (InterruptedException ignored) {}
 
         track.release();
-        Log.d(TAG, "TTS done: " + text);
     }
 
     // ===== Helpers =====

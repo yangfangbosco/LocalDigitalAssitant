@@ -28,6 +28,7 @@ public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
     private JSBridge jsBridge;
+    private AdminServer adminServer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,6 +94,15 @@ public class MainActivity extends AppCompatActivity {
             jsBridge.initTts(getAssets(), modelDir);
             Log.d(TAG, "TTS init done");
 
+            // Start admin server on port 8080
+            try {
+                adminServer = new AdminServer(MainActivity.this, 8080);
+                adminServer.start();
+                Log.d(TAG, "Admin server started at http://" + adminServer.getDeviceIp() + ":8080");
+            } catch (Exception e) {
+                Log.e(TAG, "Admin server failed to start", e);
+            }
+
             runOnUiThread(() -> webView.loadUrl("file:///android_asset/index.html"));
         });
     }
@@ -121,6 +131,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         if (jsBridge != null) jsBridge.release();
+        if (adminServer != null) adminServer.stop();
         InferenceEngine.asrRelease();
         InferenceEngine.llmRelease();
     }
