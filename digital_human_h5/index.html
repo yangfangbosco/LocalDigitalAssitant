@@ -5,48 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Digital Human</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     html, body {
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: #000;
+      background: #1a1a2e;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       -webkit-tap-highlight-color: transparent;
     }
 
-    /* ===== Video Layer ===== */
-    #video-container {
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-    }
-
-    #video-container video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    #video-listen,
-    #video-talking {
-      position: absolute;
-      inset: 0;
-    }
-
-    #video-talking {
-      opacity: 0;
-      transition: opacity 0.3s ease;
-    }
-
-    #video-talking.active {
-      opacity: 1;
-    }
+    /* ===== Live2D Canvas ===== */
+    #live2d-canvas { position: fixed; inset: 0; z-index: 0; }
 
     /* ===== User Text (pill, left of mic button) ===== */
     #user-text {
@@ -91,9 +62,7 @@
       backdrop-filter: blur(4px);
     }
 
-    #ai-response::-webkit-scrollbar {
-      display: none;
-    }
+    #ai-response::-webkit-scrollbar { display: none; }
 
     #ai-response.active {
       display: block;
@@ -101,20 +70,13 @@
     }
 
     #ai-response.streaming::after {
-      content: '▊';
+      content: '\25CA';
       animation: blink 0.8s infinite;
       margin-left: 2px;
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-
-    @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0; }
-    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 
     /* ===== Mic Button (right-center of screen) ===== */
     #mic-btn {
@@ -137,30 +99,16 @@
       box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
     }
 
-    #mic-btn:active {
-      transform: translateY(-50%) scale(0.92);
-    }
-
-    #mic-btn.recording {
-      background: #ff4444;
-    }
-
-    #mic-btn svg {
-      width: 24px;
-      height: 24px;
-    }
-
+    #mic-btn:active { transform: translateY(-50%) scale(0.92); }
+    #mic-btn.recording { background: #ff4444; }
+    #mic-btn svg { width: 24px; height: 24px; }
     #mic-btn .icon-mic { display: block; }
     #mic-btn .icon-send { display: none; }
     #mic-btn.recording .icon-mic { display: none; }
     #mic-btn.recording .icon-send { display: block; }
+    #mic-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    #mic-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    /* Recording Indicator (next to mic button) */
+    /* Recording Indicator */
     #recording-indicator {
       position: fixed;
       right: 88px;
@@ -177,24 +125,18 @@
       font-size: 14px;
     }
 
-    #recording-indicator.active {
-      display: flex;
-    }
+    #recording-indicator.active { display: flex; }
 
     #recording-indicator .dot {
-      width: 8px;
-      height: 8px;
+      width: 8px; height: 8px;
       background: #ff4444;
       border-radius: 50%;
       animation: pulse 1.2s infinite;
     }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.5; transform: scale(1.3); }
-    }
+    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.3); } }
 
-    /* Loading Indicator (next to mic button) */
+    /* Loading Indicator */
     #loading-indicator {
       position: fixed;
       right: 88px;
@@ -211,114 +153,61 @@
       font-size: 14px;
     }
 
-    #loading-indicator.active {
-      display: flex;
-    }
+    #loading-indicator.active { display: flex; }
 
     .loading-dots span {
-      display: inline-block;
-      width: 6px;
-      height: 6px;
-      background: #fff;
-      border-radius: 50%;
+      display: inline-block; width: 6px; height: 6px;
+      background: #fff; border-radius: 50%;
       animation: loadingDot 1.4s infinite;
     }
-
     .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
     .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
 
-    @keyframes loadingDot {
-      0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
-      40% { opacity: 1; transform: scale(1); }
-    }
+    @keyframes loadingDot { 0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); } 40% { opacity: 1; transform: scale(1); } }
 
     /* ===== Debug Panel ===== */
     #debug-toggle {
-      position: fixed;
-      right: 16px;
-      bottom: 16px;
-      z-index: 30;
-      width: 40px;
-      height: 40px;
-      border-radius: 8px;
-      border: none;
-      background: rgba(0, 0, 0, 0.3);
-      color: #fff;
-      font-size: 11px;
-      font-weight: 600;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      opacity: 0.5;
+      position: fixed; right: 16px; bottom: 16px; z-index: 30;
+      width: 40px; height: 40px; border-radius: 8px; border: none;
+      background: rgba(0, 0, 0, 0.3); color: #fff;
+      font-size: 11px; font-weight: 600; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; opacity: 0.5;
     }
 
     #debug-panel {
-      position: fixed;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      z-index: 25;
-      display: none;
-      padding: 12px 16px 40px 16px;
-      background: rgba(0, 0, 0, 0.6);
-      backdrop-filter: blur(8px);
-      gap: 10px;
-      align-items: center;
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 25;
+      display: none; padding: 12px 16px 40px 16px;
+      background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px);
+      gap: 10px; align-items: center;
     }
-
-    #debug-panel.active {
-      display: flex;
-    }
+    #debug-panel.active { display: flex; }
 
     #text-input {
-      flex: 1;
-      height: 44px;
-      padding: 0 16px;
-      border: none;
-      border-radius: 22px;
-      background: rgba(255, 255, 255, 0.9);
-      font-size: 15px;
-      outline: none;
-      color: #1a1a1a;
+      flex: 1; height: 44px; padding: 0 16px; border: none;
+      border-radius: 22px; background: rgba(255, 255, 255, 0.9);
+      font-size: 15px; outline: none; color: #1a1a1a;
     }
-
-    #text-input::placeholder {
-      color: #999;
-    }
+    #text-input::placeholder { color: #999; }
 
     #debug-send-btn {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      border: none;
-      background: #4a90e2;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
+      width: 44px; height: 44px; border-radius: 50%; border: none;
+      background: #4a90e2; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
-
-    #debug-send-btn svg {
-      width: 20px;
-      height: 20px;
-    }
+    #debug-send-btn svg { width: 20px; height: 20px; }
   </style>
 </head>
 <body>
 
-  <!-- Video Layer -->
-  <div id="video-container">
-    <video id="video-listen" src="listen.mp4" muted loop playsinline preload="auto"></video>
-    <video id="video-talking" src="taking.mp4" muted loop playsinline preload="auto"></video>
-  </div>
+  <!-- Live2D rendered here by Pixi.js -->
 
-  <!-- User ASR Text (pill, left of mic) -->
+  <!-- User ASR Text -->
   <div id="user-text"></div>
 
-  <!-- AI Response (bottom-left) -->
+  <!-- AI Response -->
   <div id="ai-response"></div>
 
-  <!-- Mic Button (right-center) -->
+  <!-- Mic Button -->
   <div id="recording-indicator">
     <span class="dot"></span>
     <span>Listening...</span>
@@ -350,17 +239,138 @@
     </button>
   </div>
 
+  <!-- Live2D Libraries -->
+  <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.10/dist/browser/pixi.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/cubism4.min.js"></script>
+
   <script>
     // ===== Config =====
     const API_BASE = '/api';
 
+    // ===== Live2D =====
+    let live2dModel = null;
+    let mouthTimer = null;
+    const Live2DModel = PIXI.live2d?.Live2DModel;
+
+    async function initLive2D() {
+      const app = new PIXI.Application({
+        resizeTo: window,
+        backgroundColor: 0x1a1a2e,
+        autoStart: true,
+      });
+      document.body.prepend(app.view);
+
+      if (!Live2DModel) { console.error('Live2D not loaded'); return; }
+
+      try {
+        live2dModel = await Live2DModel.from('live2d_model/Hiyori.model3.json');
+
+        const scaleX = window.innerWidth / live2dModel.width;
+        const scaleY = window.innerHeight / live2dModel.height;
+        const scale = Math.min(scaleX, scaleY) * 0.9;
+        live2dModel.scale.set(scale);
+        live2dModel.x = (window.innerWidth - live2dModel.width * scale) / 2;
+        live2dModel.y = (window.innerHeight - live2dModel.height * scale) / 2;
+
+        app.stage.addChild(live2dModel);
+
+        window.addEventListener('resize', () => {
+          const s = Math.min(window.innerWidth / live2dModel.width, window.innerHeight / live2dModel.height) * 0.9;
+          live2dModel.scale.set(s);
+          live2dModel.x = (window.innerWidth - live2dModel.width * s) / 2;
+          live2dModel.y = (window.innerHeight - live2dModel.height * s) / 2;
+        });
+      } catch (e) {
+        console.error('Live2D load failed:', e);
+      }
+    }
+
+    // ===== Viseme-driven Lip Sync =====
+    let lipSyncCtx = null;
+    let lipSyncAnalyser = null;
+    let lipSyncRAF = null;
+    let lipSyncPlaying = false;
+
+    function ensureLipSyncCtx() {
+      if (!lipSyncCtx) {
+        lipSyncCtx = new (window.AudioContext || window.webkitAudioContext)();
+        lipSyncAnalyser = lipSyncCtx.createAnalyser();
+        lipSyncAnalyser.fftSize = 256;
+        lipSyncAnalyser.connect(lipSyncCtx.destination);
+      }
+      if (lipSyncCtx.state === 'suspended') lipSyncCtx.resume();
+    }
+
+    async function playAudioWithLipSync(audioUrl) {
+      if (!live2dModel) return;
+      ensureLipSyncCtx();
+
+      const resp = await fetch(audioUrl);
+      const arrayBuffer = await resp.arrayBuffer();
+      const audioBuffer = await lipSyncCtx.decodeAudioData(arrayBuffer);
+
+      const source = lipSyncCtx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(lipSyncAnalyser);
+
+      const freqData = new Uint8Array(lipSyncAnalyser.frequencyBinCount);
+      lipSyncPlaying = true;
+
+      // Override the model's update to inject lip sync AFTER motion updates
+      const originalUpdate = live2dModel.internalModel.motionManager.update;
+      live2dModel.internalModel.motionManager.update = function(model, now) {
+        const result = originalUpdate.call(this, model, now);
+        // After motion update, override mouth params with lip sync values
+        if (lipSyncPlaying && lipSyncAnalyser) {
+          lipSyncAnalyser.getByteFrequencyData(freqData);
+          const binSize = lipSyncCtx.sampleRate / lipSyncAnalyser.fftSize;
+          let lowSum = 0, lowCount = 0;
+          let midSum = 0, midCount = 0;
+
+          for (let i = 0; i < freqData.length; i++) {
+            const freq = i * binSize;
+            if (freq >= 100 && freq < 500) { lowSum += freqData[i]; lowCount++; }
+            else if (freq >= 500 && freq < 2000) { midSum += freqData[i]; midCount++; }
+          }
+
+          const low = lowCount > 0 ? (lowSum / lowCount) / 255 : 0;
+          const mid = midCount > 0 ? (midSum / midCount) / 255 : 0;
+
+          const cm = live2dModel.internalModel.coreModel;
+          cm.setParameterValueById('ParamMouthOpenY', Math.min(1.0, low * 2.5));
+          cm.setParameterValueById('ParamMouthForm', Math.max(-1, Math.min(1, (mid - low) * 2.0)));
+        }
+        return result;
+      };
+
+      return new Promise((resolve) => {
+        source.onended = () => {
+          lipSyncPlaying = false;
+          // Restore original motion manager update
+          live2dModel.internalModel.motionManager.update = originalUpdate;
+          try {
+            live2dModel.internalModel.coreModel.setParameterValueById('ParamMouthOpenY', 0);
+            live2dModel.internalModel.coreModel.setParameterValueById('ParamMouthForm', 0);
+          } catch(e) {}
+          resolve();
+        };
+        source.start();
+      });
+    }
+
+    function stopLipSync() {
+      lipSyncPlaying = false;
+      if (lipSyncRAF) { cancelAnimationFrame(lipSyncRAF); lipSyncRAF = null; }
+      if (!live2dModel) return;
+      try {
+        live2dModel.internalModel.coreModel.setParameterValueById('ParamMouthOpenY', 0);
+        live2dModel.internalModel.coreModel.setParameterValueById('ParamMouthForm', 0);
+      } catch(e) {}
+    }
+
     // ===== State Management =====
-    const State = {
-      IDLE: 'idle',
-      RECORDING: 'recording',
-      PROCESSING: 'processing',
-      SPEAKING: 'speaking',
-    };
+    const State = { IDLE: 'idle', RECORDING: 'recording', PROCESSING: 'processing', SPEAKING: 'speaking' };
 
     let currentState = State.IDLE;
     let mediaRecorder = null;
@@ -373,12 +383,10 @@
     let audioContext = null;
     let vadAnalyser = null;
     let vadTimer = null;
-    const VAD_SILENCE_MS = 1500;   // silence duration to trigger send
-    const VAD_THRESHOLD = 0.01;    // energy threshold
+    const VAD_SILENCE_MS = 1500;
+    const VAD_THRESHOLD = 0.01;
 
     // ===== DOM Elements =====
-    const videoListen = document.getElementById('video-listen');
-    const videoTalking = document.getElementById('video-talking');
     const userTextEl = document.getElementById('user-text');
     const aiResponseEl = document.getElementById('ai-response');
     const micBtn = document.getElementById('mic-btn');
@@ -391,20 +399,12 @@
 
     // ===== Init =====
     function init() {
-      videoListen.play().catch(() => {
-        document.addEventListener('click', () => {
-          videoListen.play();
-        }, { once: true });
-      });
+      initLive2D();
 
       micBtn.addEventListener('click', handleMicClick);
 
-      // Debug panel toggle
-      debugToggle.addEventListener('click', () => {
-        debugPanel.classList.toggle('active');
-      });
+      debugToggle.addEventListener('click', () => debugPanel.classList.toggle('active'));
 
-      // Debug: send text
       async function debugSend() {
         if (currentState !== State.IDLE) return;
         const text = textInput.value.trim();
@@ -418,20 +418,14 @@
       textInput.addEventListener('keydown', async (e) => {
         if (e.key === 'Enter') await debugSend();
       });
-
       debugSendBtn.addEventListener('click', debugSend);
     }
 
     // ===== State Transitions =====
     function setState(newState) {
       currentState = newState;
+      if (newState === State.RECORDING || newState === State.PROCESSING) hideAllText();
 
-      // Clear previous text when starting new interaction
-      if (newState === State.RECORDING || newState === State.PROCESSING) {
-        hideAllText();
-      }
-
-      // Update UI
       micBtn.classList.toggle('recording', newState === State.RECORDING);
       recordingIndicator.classList.toggle('active', newState === State.RECORDING);
       loadingIndicator.classList.toggle('active', newState === State.PROCESSING);
@@ -439,14 +433,9 @@
       micBtn.disabled = busy;
       textInput.disabled = busy;
 
-      // Video switching
-      if (newState === State.SPEAKING) {
-        videoTalking.currentTime = 0;
-        videoTalking.play();
-        videoTalking.classList.add('active');
-      } else {
-        videoTalking.classList.remove('active');
-        videoTalking.pause();
+      // Live2D: lip sync stops when not speaking
+      if (newState !== State.SPEAKING) {
+        stopLipSync();
       }
     }
 
@@ -465,17 +454,9 @@
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaRecorder = new MediaRecorder(stream);
         audioChunks = [];
-
-        mediaRecorder.ondataavailable = (e) => {
-          if (e.data.size > 0) {
-            audioChunks.push(e.data);
-          }
-        };
-
+        mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
         mediaRecorder.start();
         setState(State.RECORDING);
-
-        // Setup VAD
         startVAD(stream);
       } catch (err) {
         console.error('Failed to access microphone:', err);
@@ -489,80 +470,46 @@
       vadAnalyser = audioContext.createAnalyser();
       vadAnalyser.fftSize = 512;
       source.connect(vadAnalyser);
-
       const dataArray = new Float32Array(vadAnalyser.fftSize);
-      let silenceStart = null;
-      let hasSpoken = false;
+      let silenceStart = null, hasSpoken = false;
 
       function checkVAD() {
         if (currentState !== State.RECORDING) return;
-
         vadAnalyser.getFloatTimeDomainData(dataArray);
-
-        // Calculate RMS energy
         let sum = 0;
-        for (let i = 0; i < dataArray.length; i++) {
-          sum += dataArray[i] * dataArray[i];
-        }
+        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i] * dataArray[i];
         const rms = Math.sqrt(sum / dataArray.length);
-
-        if (rms > VAD_THRESHOLD) {
-          hasSpoken = true;
-          silenceStart = null;
-        } else if (hasSpoken) {
-          if (!silenceStart) {
-            silenceStart = Date.now();
-          } else if (Date.now() - silenceStart > VAD_SILENCE_MS) {
-            // Silence detected after speech, auto-send
-            stopRecordingAndSend();
-            return;
-          }
+        if (rms > VAD_THRESHOLD) { hasSpoken = true; silenceStart = null; }
+        else if (hasSpoken) {
+          if (!silenceStart) silenceStart = Date.now();
+          else if (Date.now() - silenceStart > VAD_SILENCE_MS) { stopRecordingAndSend(); return; }
         }
-
         vadTimer = requestAnimationFrame(checkVAD);
       }
-
       vadTimer = requestAnimationFrame(checkVAD);
     }
 
     function stopVAD() {
-      if (vadTimer) {
-        cancelAnimationFrame(vadTimer);
-        vadTimer = null;
-      }
-      if (audioContext) {
-        audioContext.close();
-        audioContext = null;
-      }
+      if (vadTimer) { cancelAnimationFrame(vadTimer); vadTimer = null; }
+      if (audioContext) { audioContext.close(); audioContext = null; }
     }
 
     // ===== Stop Recording & Send =====
     async function stopRecordingAndSend() {
       if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
       stopVAD();
-
       return new Promise((resolve) => {
         mediaRecorder.onstop = async () => {
-          // Stop all tracks
           mediaRecorder.stream.getTracks().forEach(t => t.stop());
-
           const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
           setState(State.PROCESSING);
-
-          // Send audio to ASR
           const asrText = await sendToASR(audioBlob);
-
           if (asrText && asrText.trim()) {
             showUserText(asrText);
-
             await requestLLMResponse(asrText);
-          } else {
-            setState(State.IDLE);
-          }
-
+          } else { setState(State.IDLE); }
           resolve();
         };
-
         mediaRecorder.stop();
       });
     }
@@ -572,19 +519,11 @@
       try {
         const formData = new FormData();
         formData.append('audio', audioBlob);
-
-        const resp = await fetch(`${API_BASE}/asr`, {
-          method: 'POST',
-          body: formData,
-        });
-
+        const resp = await fetch(`${API_BASE}/asr`, { method: 'POST', body: formData });
         if (!resp.ok) throw new Error(resp.status);
         const data = await resp.json();
         return data.text || '';
-      } catch (err) {
-        console.error('ASR request failed:', err);
-        return '';
-      }
+      } catch (err) { console.error('ASR failed:', err); return ''; }
     }
 
     // ===== LLM Streaming Response =====
@@ -592,220 +531,122 @@
       accumulatedText = '';
       sentenceBuffer = '';
       resetTtsQueue();
-
       try {
         const resp = await fetch(`${API_BASE}/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: userText }),
         });
-
         if (!resp.ok) throw new Error(resp.status);
-
         showAiResponse('', true);
         const reader = resp.body.getReader();
         const decoder = new TextDecoder();
-
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          processStreamChunk(chunk);
+          processStreamChunk(decoder.decode(value, { stream: true }));
         }
-
-        // Stream ended, process remaining text
-        if (sentenceBuffer.trim()) {
-          sendToTTS(sentenceBuffer.trim());
-          sentenceBuffer = '';
-        }
-
-        // Remove streaming cursor
+        if (sentenceBuffer.trim()) { sendToTTS(sentenceBuffer.trim()); sentenceBuffer = ''; }
         aiResponseEl.classList.remove('streaming');
-
-        // Wait for all audio to finish
         await waitForAudioComplete();
         setState(State.IDLE);
-
       } catch (err) {
-        console.error('LLM request failed:', err);
+        console.error('LLM failed:', err);
         showAiResponse('Connection error. Please try again.', false);
         setState(State.IDLE);
       }
     }
 
-    // ===== Process Stream Chunk =====
     function processStreamChunk(chunk) {
-      // Parse SSE format
-      const lines = chunk.split('\n');
-      for (const line of lines) {
+      for (const line of chunk.split('\n')) {
         if (line.startsWith('data: ')) {
           const data = line.slice(6);
           if (data === '[DONE]') continue;
-
           try {
             const parsed = JSON.parse(data);
-            const text = parsed.content || parsed.text || data;
-            appendStreamText(text);
-          } catch {
-            // Non-JSON, treat as plain text
-            appendStreamText(data);
-          }
+            appendStreamText(parsed.content || parsed.text || data);
+          } catch { appendStreamText(data); }
         }
       }
     }
 
-    // ===== Append Stream Text =====
     function appendStreamText(text) {
       accumulatedText += text;
       sentenceBuffer += text;
-
-      // Update AI response text
       aiResponseEl.textContent = accumulatedText;
       aiResponseEl.scrollTop = aiResponseEl.scrollHeight;
-
-      // Check for complete sentences
-      const sentenceEnders = /([。！？；\n.!?;])/;
-      const match = sentenceBuffer.match(sentenceEnders);
-
+      const match = sentenceBuffer.match(/([.!?;。！？；\n])/);
       if (match) {
         const idx = match.index + match[0].length;
-        const completeSentence = sentenceBuffer.slice(0, idx).trim();
+        const sentence = sentenceBuffer.slice(0, idx).trim();
         sentenceBuffer = sentenceBuffer.slice(idx);
-
-        if (completeSentence) {
-          sendToTTS(completeSentence);
-        }
+        if (sentence) sendToTTS(sentence);
       }
     }
 
     // ===== TTS (ordered queue) =====
-    let ttsSequence = 0;
-    let ttsResults = new Map(); // sequence -> audioUrl
-    let ttsNextToPlay = 0;
-
-    function resetTtsQueue() {
-      ttsSequence = 0;
-      ttsNextToPlay = 0;
-      ttsResults.clear();
-      audioQueue = [];
-    }
+    let ttsSequence = 0, ttsResults = new Map(), ttsNextToPlay = 0;
+    function resetTtsQueue() { ttsSequence = 0; ttsNextToPlay = 0; ttsResults.clear(); audioQueue = []; }
 
     async function sendToTTS(text) {
       const seq = ttsSequence++;
-
       try {
         const resp = await fetch(`${API_BASE}/tts`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text }),
         });
-
         if (!resp.ok) throw new Error(resp.status);
-
-        const audioBlob = await resp.blob();
-        const audioUrl = URL.createObjectURL(audioBlob);
-
-        // Store result at its sequence position
-        ttsResults.set(seq, audioUrl);
-
-        // Try to flush in-order results to the play queue
+        const blob = await resp.blob();
+        ttsResults.set(seq, URL.createObjectURL(blob));
         flushTtsQueue();
-      } catch (err) {
-        // Mark this slot as skipped so it doesn't block later items
-        ttsResults.set(seq, null);
-        flushTtsQueue();
-        console.warn('TTS skipped:', err.message);
-      }
+      } catch (err) { ttsResults.set(seq, null); flushTtsQueue(); }
     }
 
     function flushTtsQueue() {
       while (ttsResults.has(ttsNextToPlay)) {
-        const audioUrl = ttsResults.get(ttsNextToPlay);
-        ttsResults.delete(ttsNextToPlay);
-        ttsNextToPlay++;
-
-        if (audioUrl) {
-          audioQueue.push(audioUrl);
-        }
+        const url = ttsResults.get(ttsNextToPlay);
+        ttsResults.delete(ttsNextToPlay++);
+        if (url) audioQueue.push(url);
       }
-
-      if (!isPlayingAudio && audioQueue.length > 0) {
-        playNextAudio();
-      }
+      if (!isPlayingAudio && audioQueue.length > 0) playNextAudio();
     }
 
-    // ===== Audio Queue Playback =====
-    function playNextAudio() {
-      if (audioQueue.length === 0) {
-        isPlayingAudio = false;
-        return;
-      }
-
+    async function playNextAudio() {
+      if (audioQueue.length === 0) { isPlayingAudio = false; return; }
       isPlayingAudio = true;
       setState(State.SPEAKING);
+      const url = audioQueue.shift();
 
-      const audioUrl = audioQueue.shift();
-      currentAudio = new Audio(audioUrl);
+      try {
+        await playAudioWithLipSync(url);
+      } catch(e) {
+        console.warn('Audio play failed:', e);
+        stopLipSync();
+      }
 
-      currentAudio.onended = () => {
-        URL.revokeObjectURL(audioUrl);
-        if (audioQueue.length > 0) {
-          playNextAudio();
-        } else {
-          isPlayingAudio = false;
-          // Check if streaming is done
-          if (!aiResponseEl.classList.contains('streaming')) {
-            setState(State.IDLE);
-          }
-        }
-      };
-
-      currentAudio.onerror = () => {
-        URL.revokeObjectURL(audioUrl);
+      URL.revokeObjectURL(url);
+      if (audioQueue.length > 0) {
         playNextAudio();
-      };
-
-      currentAudio.play().catch(() => playNextAudio());
+      } else {
+        isPlayingAudio = false;
+        if (!aiResponseEl.classList.contains('streaming')) setState(State.IDLE);
+      }
     }
 
-    // ===== Wait For Audio Complete =====
     function waitForAudioComplete() {
       return new Promise((resolve) => {
-        const check = () => {
-          if (!isPlayingAudio && audioQueue.length === 0) {
-            resolve();
-          } else {
-            setTimeout(check, 100);
-          }
-        };
+        const check = () => (!isPlayingAudio && audioQueue.length === 0) ? resolve() : setTimeout(check, 100);
         check();
       });
     }
 
-    // ===== Show User Text =====
-    function showUserText(text) {
-      userTextEl.textContent = text;
-      userTextEl.classList.add('active');
-    }
-
-    // ===== Show AI Response =====
+    // ===== UI Helpers =====
+    function showUserText(text) { userTextEl.textContent = text; userTextEl.classList.add('active'); }
     function showAiResponse(text, streaming = false) {
       aiResponseEl.textContent = text;
       aiResponseEl.classList.add('active');
-      if (streaming) {
-        aiResponseEl.classList.add('streaming');
-      } else {
-        aiResponseEl.classList.remove('streaming');
-      }
+      streaming ? aiResponseEl.classList.add('streaming') : aiResponseEl.classList.remove('streaming');
     }
-
-    // ===== Hide All Text =====
-    function hideAllText() {
-      userTextEl.classList.remove('active');
-      aiResponseEl.classList.remove('active', 'streaming');
-    }
-
+    function hideAllText() { userTextEl.classList.remove('active'); aiResponseEl.classList.remove('active', 'streaming'); }
 
     // ===== Start =====
     init();

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Live2D Demo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #1a1a2e; }
+    canvas { width: 100%; height: 100%; display: block; }
+
+    #controls {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      color: #fff;
+    }
+    .btn-idle { background: #4a90e2; }
+    .btn-talk { background: #e74c3c; }
+
+    #status {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      color: #fff;
+      font-family: monospace;
+      font-size: 13px;
+      opacity: 0.7;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+
+<div id="status">Loading Live2D...</div>
+
+<div id="controls">
+  <button class="btn btn-idle" onclick="window.setIdle()">Idle</button>
+  <button class="btn btn-talk" onclick="window.setTalking()">Talking</button>
+</div>
+
+<!-- Live2D Cubism Core -->
+<script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
+
+<!-- Pixi.js v6 -->
+<script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.10/dist/browser/pixi.min.js"></script>
+
+<!-- pixi-live2d-display (Cubism 4 only build, no Cubism 2 dependency) -->
+<script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/cubism4.min.js"></script>
+
+<script>
+  const statusEl = document.getElementById('status');
+  let currentModel = null;
+  let mouthTimer = null;
+
+  async function init() {
+    // Check if libraries loaded
+    if (!window.PIXI) { statusEl.textContent = 'Error: PIXI not loaded'; return; }
+
+    const Live2DModel = PIXI.live2d?.Live2DModel;
+    if (!Live2DModel) { statusEl.textContent = 'Error: Live2D plugin not loaded'; return; }
+
+    const app = new PIXI.Application({
+      resizeTo: window,
+      backgroundColor: 0x1a1a2e,
+      autoStart: true,
+    });
+    document.body.prepend(app.view);
+
+    statusEl.textContent = 'Loading model...';
+
+    try {
+      currentModel = await Live2DModel.from(
+        'https://cdn.jsdelivr.net/gh/Live2D/CubismWebSamples/Samples/Resources/Hiyori/Hiyori.model3.json'
+      );
+
+      // Scale to fit screen
+      const scaleX = window.innerWidth / currentModel.width;
+      const scaleY = window.innerHeight / currentModel.height;
+      const scale = Math.min(scaleX, scaleY) * 0.9;
+      currentModel.scale.set(scale);
+      currentModel.x = (window.innerWidth - currentModel.width * scale) / 2;
+      currentModel.y = (window.innerHeight - currentModel.height * scale) / 2;
+
+      app.stage.addChild(currentModel);
+      statusEl.textContent = 'Ready! Click buttons to test.';
+
+    } catch (e) {
+      statusEl.textContent = 'Failed: ' + e.message;
+      console.error(e);
+    }
+  }
+
+  window.setIdle = function() {
+    if (!currentModel) return;
+    if (mouthTimer) { clearInterval(mouthTimer); mouthTimer = null; }
+    try {
+      currentModel.internalModel.coreModel.setParameterValueById('ParamMouthOpenY', 0);
+    } catch(e) {}
+    statusEl.textContent = 'State: Idle';
+  };
+
+  window.setTalking = function() {
+    if (!currentModel) return;
+    statusEl.textContent = 'State: Talking';
+    if (mouthTimer) clearInterval(mouthTimer);
+    mouthTimer = setInterval(() => {
+      try {
+        const v = Math.random() * 0.7 + 0.3;
+        currentModel.internalModel.coreModel.setParameterValueById('ParamMouthOpenY', v);
+      } catch(e) {}
+    }, 120);
+  };
+
+  init();
+</script>
+</body>
+</html>
