@@ -3,8 +3,8 @@ package com.digitalhuman;
 /**
  * JNI bridge to native C++ inference engines.
  * - ASR: whisper.cpp
- * - LLM: llama.cpp
- * - TTS: handled by sherpa-onnx (Kokoro) in JSBridge, not via JNI
+ * - LLM: via OpenAI-compatible API (see LlmClient.java)
+ * - TTS: via sherpa-onnx (see JSBridge.java)
  */
 public class InferenceEngine {
 
@@ -19,18 +19,4 @@ public class InferenceEngine {
     public static native String asrTranscribe(float[] audioData);
 
     public static native void asrRelease();
-
-    // ===== LLM (llama.cpp) =====
-
-    public static native boolean llmInit(String modelPath, String systemPrompt);
-
-    public static native long llmStartChat(String userMessage);
-
-    public static native String llmNext(long session);
-
-    public static native void llmStopChat(long session);
-
-    public static native void llmClearHistory();
-
-    public static native void llmRelease();
 }

@@ -25,9 +25,19 @@ android {
         }
     }
 
+    signingConfigs {
+        release {
+            storeFile file('/tmp/kiosk.keystore')
+            storePassword 'android'
+            keyAlias 'kiosk'
+            keyPassword 'android'
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
+            signingConfig signingConfigs.release
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
         }
     }
@@ -48,5 +58,4 @@ android {
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation files('libs/sherpa-onnx.aar')
-    implementation 'org.nanohttpd:nanohttpd:2.3.1'
 }

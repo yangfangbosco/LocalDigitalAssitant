@@ -21,3 +21,6 @@ app/src/main/assets/*.onnx.json
 
 # Video files are tracked (small enough)
 !app/src/main/assets/*.mp4
+
+# API keys config (contains secrets)
+app/src/main/assets/llm_config.json

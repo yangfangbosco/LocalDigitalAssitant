@@ -28,7 +28,6 @@ public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
     private JSBridge jsBridge;
-    private AdminServer adminServer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,7 +40,7 @@ public class MainActivity extends AppCompatActivity {
                     PERMISSION_REQUEST_CODE);
         }
 
-        WebView.setWebContentsDebuggingEnabled(true); // TODO: set false for production
+        WebView.setWebContentsDebuggingEnabled(true);
         webView = new WebView(this);
         setContentView(webView);
 
@@ -77,31 +76,15 @@ public class MainActivity extends AppCompatActivity {
             String modelDir = getFilesDir().getAbsolutePath() + "/models";
             new File(modelDir).mkdirs();
 
-            // Copy ASR and LLM models from assets on first run
-            // (TTS models read directly from assets by sherpa-onnx)
+            // Copy ASR model from assets on first run
             copyAssetIfNeeded("whisper-tiny.en.bin", modelDir);
-            copyAssetIfNeeded("qwen2.5-0.5b-q4.gguf", modelDir);
 
             boolean asrOk = InferenceEngine.asrInit(modelDir + "/whisper-tiny.en.bin");
             Log.d(TAG, "ASR init: " + asrOk);
 
-            boolean llmOk = InferenceEngine.llmInit(
-                    modelDir + "/qwen2.5-0.5b-q4.gguf",
-                    "You are a helpful digital human assistant. Keep your responses concise and conversational."
-            );
-            Log.d(TAG, "LLM init: " + llmOk);
-
+            // TTS init (Piper via sherpa-onnx, reads from assets)
             jsBridge.initTts(getAssets(), modelDir);
             Log.d(TAG, "TTS init done");
-
-            // Start admin server on port 8080
-            try {
-                adminServer = new AdminServer(MainActivity.this, 8080);
-                adminServer.start();
-                Log.d(TAG, "Admin server started at http://" + adminServer.getDeviceIp() + ":8080");
-            } catch (Exception e) {
-                Log.e(TAG, "Admin server failed to start", e);
-            }
 
             runOnUiThread(() -> webView.loadUrl("file:///android_asset/index.html"));
         });
@@ -131,9 +114,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         if (jsBridge != null) jsBridge.release();
-        if (adminServer != null) adminServer.stop();
         InferenceEngine.asrRelease();
-        InferenceEngine.llmRelease();
     }
 
     @Override

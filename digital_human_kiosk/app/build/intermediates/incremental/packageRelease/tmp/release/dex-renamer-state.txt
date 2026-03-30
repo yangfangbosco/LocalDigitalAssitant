@@ -1,0 +1,4 @@
+#Tue Mar 31 01:17:16 CST 2026
+base.0=/Users/fa/Documents/digital-human/digital_human_kiosk/app/build/intermediates/dex/release/mergeDexRelease/classes.dex
+path.0=classes.dex
+renamed.0=classes.dex

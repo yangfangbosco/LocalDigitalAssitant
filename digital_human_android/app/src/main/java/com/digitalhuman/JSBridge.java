@@ -23,7 +23,6 @@ import com.k2fsa.sherpa.onnx.OfflineTtsConfig;
 import com.k2fsa.sherpa.onnx.OfflineTtsModelConfig;
 import com.k2fsa.sherpa.onnx.OfflineTtsVitsModelConfig;
 
-import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -46,13 +45,17 @@ public class JSBridge {
 
     private OfflineTts offlineTts;
     private boolean ttsReady = false;
+    private LlmClient llmClient;
 
     public JSBridge(WebView webView, Context context) {
         this.webView = webView;
         this.context = context;
+        this.llmClient = new LlmClient(context);
         this.mainHandler = new Handler(Looper.getMainLooper());
         this.executor = Executors.newSingleThreadExecutor();
     }
+
+    public LlmClient getLlmClient() { return llmClient; }
 
     public void initTts(AssetManager assetManager, String modelDir) {
         try {
@@ -158,17 +161,6 @@ public class JSBridge {
     private final ExecutorService ttsExecutor = Executors.newSingleThreadExecutor();
 
     private void runLLMAndTTS(String userText) {
-        // RAG: search FAQ database for relevant answers
-        String ragContext = buildRagContext(userText);
-        String queryWithContext = userText;
-        if (!ragContext.isEmpty()) {
-            queryWithContext = "Use the following knowledge to answer. " +
-                    "If the answer is in the knowledge base, use it directly.\n\n" +
-                    "Knowledge:\n" + ragContext + "\n\nUser question: " + userText;
-            Log.d(TAG, "RAG context found, augmented query");
-        }
-
-        // TTS queue: LLM puts sentences in, TTS thread consumes and plays
         BlockingQueue<String> ttsQueue = new LinkedBlockingQueue<>();
 
         // Start TTS consumer thread
@@ -187,22 +179,27 @@ public class JSBridge {
             callJS("onTTSDone", "");
         });
 
-        // LLM producer: generates tokens and sends complete sentences to TTS queue
-        long session = InferenceEngine.llmStartChat(queryWithContext);
+        // LLM producer: streams tokens via OpenAI API, sends sentences to TTS queue
         StringBuilder sentence = new StringBuilder();
-        String token;
 
-        while ((token = InferenceEngine.llmNext(session)) != null) {
-            callJS("onLLMToken", escapeJS(token));
-            sentence.append(token);
+        try {
+            llmClient.streamChat(userText, token -> {
+                callJS("onLLMToken", escapeJS(token));
+                sentence.append(token);
 
-            if (token.matches(".*[.!?;。！？；\\n].*")) {
-                String completeSentence = sentence.toString().trim();
-                if (!completeSentence.isEmpty()) {
-                    ttsQueue.offer(completeSentence);
+                if (token.matches(".*[.!?;。！？；\\n].*")) {
+                    String completeSentence = sentence.toString().trim();
+                    if (!completeSentence.isEmpty()) {
+                        ttsQueue.offer(completeSentence);
+                    }
+                    sentence.setLength(0);
                 }
-                sentence.setLength(0);
-            }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "LLM error: " + e.getMessage());
+            String fallback = "That's a really tough question! I haven't learned that yet.";
+            callJS("onLLMToken", escapeJS(fallback));
+            ttsQueue.offer(fallback);
         }
 
         String remaining = sentence.toString().trim();
@@ -211,20 +208,7 @@ public class JSBridge {
         }
 
         callJS("onLLMDone", "");
-        ttsQueue.offer(TTS_POISON); // Signal TTS thread to finish
-    }
-
-    private String buildRagContext(String query) {
-        FaqDatabase db = FaqDatabase.getInstance(context);
-        List<FaqDatabase.FaqItem> results = db.search(query, 3);
-        if (results.isEmpty()) return "";
-
-        StringBuilder sb = new StringBuilder();
-        for (FaqDatabase.FaqItem faq : results) {
-            sb.append("Q: ").append(faq.question).append("\n");
-            sb.append("A: ").append(faq.answer).append("\n\n");
-        }
-        return sb.toString().trim();
+        ttsQueue.offer(TTS_POISON);
     }
 
     // ===== TTS =====

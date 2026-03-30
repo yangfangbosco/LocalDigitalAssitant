@@ -1,0 +1,19 @@
+<lint-module
+    format="1"
+    dir="/Users/fa/Documents/digital-human/digital_human_kiosk/app"
+    name=":app"
+    type="APP"
+    maven="DigitalHumanKiosk:app:unspecified"
+    agpVersion="8.7.0"
+    buildFolder="build"
+    bootClassPath="/Users/fa/Library/Android/sdk/platforms/android-34/android.jar:/Users/fa/Library/Android/sdk/build-tools/34.0.0/core-lambda-stubs.jar"
+    javaSourceLevel="11"
+    compileTarget="android-34"
+    neverShrinking="true">
+  <lintOptions
+      abortOnError="true"
+      absolutePaths="true"
+      checkReleaseBuilds="true"
+      explainIssues="true"/>
+  <variant name="release"/>
+</lint-module>
