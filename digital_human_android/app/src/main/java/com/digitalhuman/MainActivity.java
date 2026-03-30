@@ -50,6 +50,8 @@ public class MainActivity extends AppCompatActivity {
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setDomStorageEnabled(true);
         settings.setAllowFileAccess(true);
+        settings.setAllowFileAccessFromFileURLs(true);
+        settings.setAllowUniversalAccessFromFileURLs(true);
 
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
@@ -75,12 +77,10 @@ public class MainActivity extends AppCompatActivity {
             String modelDir = getFilesDir().getAbsolutePath() + "/models";
             new File(modelDir).mkdirs();
 
-            // Copy all models from assets on first run
+            // Copy ASR and LLM models from assets on first run
+            // (TTS models read directly from assets by sherpa-onnx)
             copyAssetIfNeeded("whisper-tiny.en.bin", modelDir);
             copyAssetIfNeeded("qwen2.5-0.5b-q4.gguf", modelDir);
-            copyAssetIfNeeded("kokoro-model.onnx", modelDir);
-            copyAssetIfNeeded("kokoro-tokens.txt", modelDir);
-            copyAssetIfNeeded("kokoro-voices.bin", modelDir);
 
             boolean asrOk = InferenceEngine.asrInit(modelDir + "/whisper-tiny.en.bin");
             Log.d(TAG, "ASR init: " + asrOk);

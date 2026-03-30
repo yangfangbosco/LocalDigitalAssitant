@@ -11,7 +11,7 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: #1a1a2e;
+      background: #ffffff;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       -webkit-tap-highlight-color: transparent;
     }
@@ -195,6 +195,31 @@
       display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
     #debug-send-btn svg { width: 20px; height: 20px; }
+
+    /* ===== Position Adjust Panel ===== */
+    #pos-panel {
+      position: fixed; left: 0; right: 0; bottom: 60px; z-index: 26;
+      display: none; flex-direction: column; align-items: center;
+      padding: 12px; gap: 8px;
+    }
+    #pos-panel.active { display: flex; }
+
+    .pos-row { display: flex; gap: 8px; align-items: center; }
+
+    .pos-btn {
+      width: 44px; height: 44px; border-radius: 8px; border: none;
+      background: rgba(0, 0, 0, 0.5); color: #fff; font-size: 18px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    .pos-btn:active { background: rgba(0, 0, 0, 0.8); }
+
+    #pos-save {
+      padding: 8px 24px; border-radius: 8px; border: none;
+      background: #4a90e2; color: #fff; font-size: 14px; cursor: pointer;
+    }
+    #pos-info {
+      color: rgba(0,0,0,0.5); font-size: 11px;
+    }
   </style>
 </head>
 <body>
@@ -239,6 +264,26 @@
     </button>
   </div>
 
+  <!-- Position Adjust Panel -->
+  <div id="pos-panel">
+    <div class="pos-row">
+      <button class="pos-btn" onclick="moveModel(0,-30)">&#9650;</button>
+    </div>
+    <div class="pos-row">
+      <button class="pos-btn" onclick="moveModel(-30,0)">&#9664;</button>
+      <button class="pos-btn" onclick="scaleModel(-0.05)">&#8722;</button>
+      <button class="pos-btn" onclick="scaleModel(0.05)">&#43;</button>
+      <button class="pos-btn" onclick="moveModel(30,0)">&#9654;</button>
+    </div>
+    <div class="pos-row">
+      <button class="pos-btn" onclick="moveModel(0,30)">&#9660;</button>
+    </div>
+    <div class="pos-row">
+      <button id="pos-save" onclick="saveModelPos()">Save Position</button>
+    </div>
+    <div id="pos-info"></div>
+  </div>
+
   <!-- Live2D Libraries (bundled for offline use) -->
   <script src="js/live2dcubismcore.min.js"></script>
   <script src="js/pixi.min.js"></script>
@@ -257,7 +302,7 @@
     async function initLive2D() {
       const app = new PIXI.Application({
         resizeTo: window,
-        backgroundColor: 0x1a1a2e,
+        backgroundColor: 0xffffff,
         autoStart: true,
       });
       document.body.prepend(app.view);
@@ -267,21 +312,20 @@
       try {
         live2dModel = await Live2DModel.from('live2d_model/Hiyori.model3.json');
 
-        const scaleX = window.innerWidth / live2dModel.width;
-        const scaleY = window.innerHeight / live2dModel.height;
-        const scale = Math.min(scaleX, scaleY) * 0.9;
-        live2dModel.scale.set(scale);
-        live2dModel.x = (window.innerWidth - live2dModel.width * scale) / 2;
-        live2dModel.y = (window.innerHeight - live2dModel.height * scale) / 2;
+        // Load saved position or use defaults
+        const saved = JSON.parse(localStorage.getItem('live2d_pos') || 'null');
+        if (saved) {
+          live2dModel.scale.set(saved.scale);
+          live2dModel.x = saved.x;
+          live2dModel.y = saved.y;
+        } else {
+          // Default position (calibrated for kiosk screen)
+          live2dModel.scale.set(0.46);
+          live2dModel.x = -135;
+          live2dModel.y = -74;
+        }
 
         app.stage.addChild(live2dModel);
-
-        window.addEventListener('resize', () => {
-          const s = Math.min(window.innerWidth / live2dModel.width, window.innerHeight / live2dModel.height) * 0.9;
-          live2dModel.scale.set(s);
-          live2dModel.x = (window.innerWidth - live2dModel.width * s) / 2;
-          live2dModel.y = (window.innerHeight - live2dModel.height * s) / 2;
-        });
       } catch (e) {
         console.error('Live2D load failed:', e);
       }
@@ -370,6 +414,41 @@
       } catch(e) {}
     }
 
+    // ===== Model Position Adjust =====
+    function moveModel(dx, dy) {
+      if (!live2dModel) return;
+      live2dModel.x += dx;
+      live2dModel.y += dy;
+      updatePosInfo();
+    }
+
+    function scaleModel(ds) {
+      if (!live2dModel) return;
+      const newScale = Math.max(0.1, live2dModel.scale.x + ds);
+      // Scale from center
+      const cx = window.innerWidth / 2;
+      const cy = window.innerHeight / 2;
+      const oldScale = live2dModel.scale.x;
+      live2dModel.x = cx - (cx - live2dModel.x) * (newScale / oldScale);
+      live2dModel.y = cy - (cy - live2dModel.y) * (newScale / oldScale);
+      live2dModel.scale.set(newScale);
+      updatePosInfo();
+    }
+
+    function saveModelPos() {
+      if (!live2dModel) return;
+      const pos = { x: live2dModel.x, y: live2dModel.y, scale: live2dModel.scale.x };
+      localStorage.setItem('live2d_pos', JSON.stringify(pos));
+      document.getElementById('pos-info').textContent = 'Saved!';
+      setTimeout(() => updatePosInfo(), 1000);
+    }
+
+    function updatePosInfo() {
+      if (!live2dModel) return;
+      document.getElementById('pos-info').textContent =
+        `x:${Math.round(live2dModel.x)} y:${Math.round(live2dModel.y)} scale:${live2dModel.scale.x.toFixed(2)}`;
+    }
+
     // ===== State Management =====
     const State = { IDLE: 'idle', RECORDING: 'recording', PROCESSING: 'processing', SPEAKING: 'speaking' };
 
@@ -404,7 +483,11 @@
 
       micBtn.addEventListener('click', handleMicClick);
 
-      debugToggle.addEventListener('click', () => debugPanel.classList.toggle('active'));
+      debugToggle.addEventListener('click', () => {
+        debugPanel.classList.toggle('active');
+        document.getElementById('pos-panel').classList.toggle('active');
+        updatePosInfo();
+      });
 
       async function debugSend() {
         if (currentState !== State.IDLE) return;
@@ -492,6 +575,14 @@
 
     window.onTTSDone = function() {
       setState(State.IDLE);
+    };
+
+    window.onMouthUpdate = function(value) {
+      if (!live2dModel) return;
+      try {
+        const v = parseFloat(value);
+        live2dModel.internalModel.coreModel.setParameterValueById('ParamMouthOpenY', v);
+      } catch(e) {}
     };
 
     // ===== Start Recording =====
